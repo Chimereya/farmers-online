@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+<main>
+  {% if category %}
+  <div class="container" style="margin-bottom: 1rem; color: #6e7780">
+    <p><a href="{% url 'blogapp:home'%}">Home</a>/ category/ {{category}}</p>
+  </div>
+  {% endif %}
+
+  <div class="container">
+    <section>
+      <div class="main-wrapper">
+        {% if object_list %} {% for blog in object_list %}
+
+        <!--  blog card -->
+        <div class="blog-card">
+          <div>
+            {% if blog.image %}<a href="{{ blog.get_absolute_url }}">
+              <img src="{{ blog.image.url }}" class="blog-card-img" /></a
+            >{% endif %}
+          </div>
+          <div class="card-content">
+            <a href="{% url 'blogapp:category' blog.category.slug %}" class="category"
+              >{{ blog.category }}</a>
+            <a href="{{ blog.get_absolute_url }}" class="card-title"
+              ><h3>{{ blog.title }}</h3></a
+            >
+
+            <p>
+              {{blog.content|safe|truncatewords:14}}
+              <a href="{{ blog.get_absolute_url }}" class="read-more"
+                >Read more</a
+              >
+            </p>
+          </div>
+        </div>
+        <!-- end blog card -->
+
+        {% endfor %} {% else %}
+        <strong>no posts in {{ category.name }}</strong>
+
+        {% endif %}
+      </div>
+      <!--end main wrapper-->
+      {% include 'blogapp/pagination.html' %}
+    </section>
+
+    {% include 'blogapp/sidebar.html' %}
+  </div>
+</main>
+
+{% endblock content %}
+
+
+
+
+
+
+
