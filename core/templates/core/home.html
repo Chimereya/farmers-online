@@ -1,4 +1,34 @@
 {% extends "base.html" %}
 
 {% block content %}
+
+<main class="container">
+   <section class="categories mb-6">
+    {% for category in categories %}
+      <a class="category-link button outline round-full" href="{% url 'category' category.slug %}">{{ category.name }}</a>
+      {% endfor %}
+   </section>
+
+   <section>
+    <h2>All Products</h2>
+    <div class="all-products">
+        {% for product in products %}
+       <div class="product-card round-md">
+        <img class="round-md" src="{{ product.product_image.url}}" alt="{{ product.title }}">
+        
+            <a href="{{ product.get_absolute_url }}">{{ product.title }}</a>
+            
+                <p>
+                    {% if product.discount_price %}
+                      <span><del>${{ product.price }}</del></span>
+                      <span>{{ product.discount_price}}</span>
+                      {% else %}
+                    <span>{{ product.price}}</span>
+                    {% endif %}
+                    <button class="button sm primary">Add to cart</button>
+       </div>
+       {% endfor %}
+    </div>
+   </section>
+</main>
 {% endblock content %}

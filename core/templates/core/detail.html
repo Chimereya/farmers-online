@@ -1,0 +1,63 @@
+{% extends 'base.html' %} 
+	
+		<title>{% block title %}
+			{{ product.product_name }}
+			{% endblock %}</title>
+		
+		
+		{% block content %}
+        <main class="container">
+		<section>
+		
+			<a href="{{ request.META.HTTP_REFERER }}" class="font-semibold">Go back</a>
+		   
+			<div class="product-detail-container">
+			 
+			
+		   <div>
+			{% if product.product_image %}<img class="product-detail-img" src="{{product.product_image.url}}" alt="{{product.title}}">
+			{% endif %}
+		   </div>
+		
+			<div>
+				<h1 class="text-3xl mb-4 font-semibold">{{product.product_name}}</h1>
+				<a href="{{product.category.get_absolute_url }}"
+		 class="font-semibold text-xl text-blue-500">{{ product.category.name }}</a>
+		
+				
+				 <p class="text-lg font-semibold mt-2">
+					{% if product.discount_price %}
+					  <span><del>${{ product.price }}</del></span>
+					  <span>${{ product.discount_price}}</span>
+					  {% else %}
+					<span>${{ product.price}}</span>
+					
+					{% endif %}
+				</p>
+				
+			 <div class="product-description mt-4 mb-6">
+				 <p class="mb-5">
+					<h2 class="text-xl font-semibold mb-3">Description</h2>
+					{{ product.description|linebreaks }}
+				 </p>
+		
+				</div>
+				
+				<a href="" class="py-2 px-4 text-white bg-blue-500 hover:bg-blue-600">Add to cart</a>
+				<a href="" class="py-2 px-4 text-white bg-blue-500 hover:bg-blue-600">remove from cart</a>
+			 
+
+			</div>
+		
+
+		
+			</div>
+		
+		</section>
+    </main>
+				{% endblock %}
+		
+		
+		
+
+

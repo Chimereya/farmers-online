@@ -14,7 +14,8 @@ STATUS = (
 # product category
 class ProductCategory(models.Model):
     name = models.CharField(max_length=200, db_index=True)
-    slug = models.SlugField(max_length=200, unique=True)
+    slug = models.SlugField(max_length=200, unique=True, blank=True)
+    # tool_tip
     
     class Meta:
         ordering = ('name',)
@@ -28,7 +29,7 @@ class ProductCategory(models.Model):
     def save(self, *args, **kwargs):
         if not self.slug:
             self.slug = slugify(self.name)
-        super(ProductCategory, self).save(*args, **kwargs)
+            super(ProductCategory, self).save(*args, **kwargs)
         
 
   
@@ -37,7 +38,7 @@ class Product(models.Model):
     product_category = models.ForeignKey(ProductCategory, related_name='products',
                                  on_delete=models.CASCADE, null=True)
     slug = models.SlugField(max_length=200,
-                            db_index=True, null=True)
+                            db_index=True, null=True, blank=True)
     
     title = models.CharField(max_length=150)
     created_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, null=True)
