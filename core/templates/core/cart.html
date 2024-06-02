@@ -1,0 +1,49 @@
+
+{% extends "base.html" %}
+{% block content %}
+<div class="cart-container">
+    <h2>Your Shopping Cart</h2>
+    <div id="cart-items">
+        {% for item in cart_items %}
+        <div class="cart-item" data-product-id="{{ item.product.id }}">
+            <img src="{{ item.product.image.url }}" alt="{{ item.product.title }}" class="cart-item-image">
+            <div class="cart-item-details">
+                <h3>{{ item.product.title }}</h3>
+                <p>Price: $<span class="product-price" data-product-id="{{ item.product.id }}">{{ item.product.discount_price|default:item.product.price }}</span></p>
+                <div class="quantity-controls">
+                    <button class="link-for-decrement" data-product-id="{{ item.product.id }}" data-action="decrease">-</button>
+                    <span class="quantity-display" data-product-id="{{ item.product.id }}">{{ item.quantity }}</span>
+                    <button class="link-for-increment" data-product-id="{{ item.product.id }}" data-action="increase">+</button>
+                </div>
+                <form
+            action="{% url 'remove_from_cart' product_id=item.product.id %}"
+            method="post"
+          >
+            {% csrf_token %}
+            <button class="button" type="submit">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="16"
+                height="16"
+                fill="currentColor"
+                class="bi bi-trash-fill"
+                viewBox="0 0 16 16"
+              >
+                <path
+                  d="M2.5 1a1 1 0 0 0-1 1v1a1 1 0 0 0 1 1H3v9a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2V4h.5a1 1 0 0 0 1-1V2a1 1 0 0 0-1-1H10a1 1 0 0 0-1-1H7a1 1 0 0 0-1 1zm3 4a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 .5-.5M8 5a.5.5 0 0 1 .5.5v7a.5.5 0 0 1-1 0v-7A.5.5 0 0 1 8 5m3 .5v7a.5.5 0 0 1-1 0v-7a.5.5 0 0 1 1 0"
+                />
+              </svg>
+            </button>
+          </form>
+                <p>Subtotal: $<span class="product-subtotal" data-product-id="{{ item.product.id }}">{{ item.new_total_price }}</span></p>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    <div id="cart-summary">
+        <h3>Total Items: <span id="cart-length">{{ total_items }}</span></h3>
+        <h3>Total Cost: $<span id="total-cost">{{ total_price }}</span> <span id="total-cost-spinner" style="display: none;">Loading...</span></h3>
+    </div>
+</div>
+
+{% endblock %}

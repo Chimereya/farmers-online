@@ -25,10 +25,41 @@
                       {% else %}
                     <span>{{ product.price}}</span>
                     {% endif %}
-                    <button class="button sm primary">Add to cart</button>
+                    <form id="add-to-cart-form" action="{% url 'add_to_cart' product.id %}" method="post">
+                      {% csrf_token %}
+                      <button class="button primary sm" type="submit">Add to Cart</button>
+                  </form>
        </div>
        {% endfor %}
     </div>
    </section>
 </main>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+
+<script>
+  $(document).ready(function() {
+      $('#add-to-cart-form').submit(function(event) {
+          event.preventDefault();
+          var form = $(this);
+          var url = form.attr('action');
+  
+          $.ajax({
+              url: url,
+              method: 'POST',
+              data: form.serialize(),
+              success: function(data) {
+                  if (data.success) {
+                      $('#cart-message').text(data.message).css('color', 'green');
+                      $('#cart-length').text(data.total_items);
+                  } else {
+                      $('#cart-message').text(data.message).css('color', 'red');
+                  }
+              },
+              error: function(xhr, errmsg, err) {
+                  console.log(xhr.status + ": " + xhr.responseText);
+              }
+          });
+      });
+  });
+</script>
 {% endblock content %}

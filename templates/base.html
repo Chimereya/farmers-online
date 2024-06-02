@@ -20,7 +20,7 @@
   <body>
     <header>
       <nav class="container">
-        <a href="" class="brand">farmer</a>
+        <a href="" class="brand">FarmersMarketOnline</a>
 
         <button class="nav-toggler">
           <span></span>
@@ -29,28 +29,28 @@
         <div class="nav-menu">
           <ul>
             <li><a href="">Home</a></li>
-            <li><a href="">Search</a></li>
+            <li><a id="cart-length" href="{% url 'cart' %}"> Cart({{ total_items }})</a>
+            </li>
 
             <li><a href="">Create Post</a></li>
             
-           {% if user.is_authenticated %}
             <li>
               <a href="" class="logout">Logout</a>
             </li>
 
-            {% else %}
             <li><a href="" class="login">Login</a></li>
             <li>
               <a href="" class="signup">Sign Up</a>
             </li>
 
-            {% endif %}
           </ul>
         </div>
       </nav>
     </header>
 
     {% block content %} {% endblock content %}
+
+    <div id="alert-container"></div>
 
     <footer>
       <div class="footer-top container">
@@ -84,6 +84,102 @@
     {% block javascript %}
     <script src="{% static 'js/scripts.js' %}"></script>
     {% endblock javascript %}
+
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+    <script>
+      $(document).ready(function() {
+        function updateItemQuantity(productId, action) {
+            var url;
+            if (action === 'increase') {
+                url = "{% url 'increase_quantity' 0 %}".replace("0", productId);
+            } else if (action === 'decrease') {
+                url = "{% url 'decrease_quantity' 0 %}".replace("0", productId);
+            }
+    
+            $.ajax({
+                url: url,
+                method: 'POST',
+                data: {
+                    csrfmiddlewaretoken: '{{ csrf_token }}'
+                },
+                beforeSend: function() {
+                    $('#total-cost-spinner').show();
+                    $('#total-cost').hide();
+                },
+                success: function(data) {
+                    if (data.success) {
+                        // Update the item quantity
+                        $('.quantity-display[data-product-id="' + productId + '"]').text(data.quantity);
+                        // Update the total items in the cart
+                        $('#cart-length').text(data.total_items);
+                        // Update the item subtotal
+                        updateSubtotal(productId, data.quantity);
+                        // Update the total cost
+                        $('#total-cost').text(data.total_cost.toFixed(2));
+                    } else {
+                        alert(data.message);
+                    }
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText);
+                },
+                complete: function() {
+                    $('#total-cost-spinner').hide();
+                    $('#total-cost').show();
+                }
+            });
+        }
+    
+        function updateSubtotal(productId, quantity) {
+            var price = parseFloat($('.product-price[data-product-id="' + productId + '"]').text());
+            var newSubtotal = quantity * price;
+            $('.product-subtotal[data-product-id="' + productId + '"]').text(newSubtotal.toFixed(2));
+        }
+    
+        $('.link-for-increment, .link-for-decrement').click(function(event) {
+            event.preventDefault();
+            var productId = $(this).data('product-id');
+            var action = $(this).data('action');
+            var currentQuantity = parseInt($('.quantity-display[data-product-id="' + productId + '"]').text());
+    
+            if (action === 'decrease' && currentQuantity === 1) {
+                return;
+            }
+    
+            updateItemQuantity(productId, action);
+        });
+    });
+    
+    
+    </script>
+
+    <script>
+      $(document).ready(function() {
+          $('#add-to-cart-form').submit(function(event) {
+              event.preventDefault();
+              var form = $(this);
+              var url = form.attr('action');
+      
+              $.ajax({
+                  url: url,
+                  method: 'POST',
+                  data: form.serialize(),
+                  success: function(data) {
+                      if (data.success) {
+                          $('#cart-message').text(data.message).css('color', 'green');
+                          $('#cart-length').text(data.total_items);
+                      } else {
+                          $('#cart-message').text(data.message).css('color', 'red');
+                      }
+                  },
+                  error: function(xhr, errmsg, err) {
+                      console.log(xhr.status + ": " + xhr.responseText);
+                  }
+              });
+          });
+      });
+  </script>
 
   </body>
 </html>
