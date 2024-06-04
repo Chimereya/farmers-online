@@ -452,20 +452,36 @@
   
   
   .alert {
-    padding: 20px;
-    margin:200px 0;
+    padding: 15px;
+    margin: 10px 0;
     border: 1px solid transparent;
     border-radius: 4px;
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 1000;
+    width: 300px;
 }
+
 .alert-success {
     color: #155724;
     background-color: #d4edda;
     border-color: #c3e6cb;
 }
+
 .alert-error {
     color: #721c24;
     background-color: #f8d7da;
     border-color: #f5c6cb;
+}
+
+
+
+.cart-item{
+  display:flex;
+  flex-direction:column;
+  border-bottom:1px solid lightgrey;
+  gap:10px;
 }
   
   main {
@@ -473,10 +489,6 @@
     padding: 0 12px;
   }
 
-  .category-link{
-    display:inline-block;
-    margin:5px;
-  }
  
   .all-products{
     display:grid;
@@ -622,7 +634,9 @@
     height:450px;
  
   }
-
+  .cart-item{
+    flex-direction:row;
+  }
   
   }
  

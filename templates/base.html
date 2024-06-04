@@ -20,7 +20,7 @@
   <body>
     <header>
       <nav class="container">
-        <a href="" class="brand">FarmersMarketOnline</a>
+        <a href="{% url 'home' %}" class="brand">FarmersMarketOnline</a>
 
         <button class="nav-toggler">
           <span></span>
@@ -32,12 +32,7 @@
             <li><a id="cart-length" href="{% url 'cart' %}"> Cart({{ total_items }})</a>
             </li>
 
-            <li><a href="">Create Post</a></li>
-            
-            <li>
-              <a href="" class="logout">Logout</a>
-            </li>
-
+           
             <li><a href="" class="login">Login</a></li>
             <li>
               <a href="" class="signup">Sign Up</a>
@@ -47,10 +42,14 @@
         </div>
       </nav>
     </header>
+    <div id="alert-container">
+      <div id="alert-success" class="alert alert-success" style="display: none;"></div>
+      <div id="alert-error" class="alert alert-error" style="display: none;"></div>
+  </div>
+  
 
     {% block content %} {% endblock content %}
 
-    <div id="alert-container"></div>
 
     <footer>
       <div class="footer-top container">
@@ -117,12 +116,15 @@
                         updateSubtotal(productId, data.quantity);
                         // Update the total cost
                         $('#total-cost').text(data.total_cost.toFixed(2));
+                        // Show success alert
+                        showAlert('success', 'Quantity updated successfully.');
                     } else {
-                        alert(data.message);
+                        showAlert('error', data.message);
                     }
                 },
                 error: function(xhr, errmsg, err) {
                     console.log(xhr.status + ": " + xhr.responseText);
+                    showAlert('error', 'An error occurred. Please try again.');
                 },
                 complete: function() {
                     $('#total-cost-spinner').hide();
@@ -135,6 +137,15 @@
             var price = parseFloat($('.product-price[data-product-id="' + productId + '"]').text());
             var newSubtotal = quantity * price;
             $('.product-subtotal[data-product-id="' + productId + '"]').text(newSubtotal.toFixed(2));
+        }
+    
+        function showAlert(type, message) {
+            var alertId = type === 'success' ? '#alert-success' : '#alert-error';
+            $(alertId).text(message).fadeIn();
+    
+            setTimeout(function() {
+                $(alertId).fadeOut();
+            }, 3000);
         }
     
         $('.link-for-increment, .link-for-decrement').click(function(event) {
@@ -156,29 +167,46 @@
 
     <script>
       $(document).ready(function() {
-          $('#add-to-cart-form').submit(function(event) {
-              event.preventDefault();
-              var form = $(this);
-              var url = form.attr('action');
-      
-              $.ajax({
-                  url: url,
-                  method: 'POST',
-                  data: form.serialize(),
-                  success: function(data) {
-                      if (data.success) {
-                          $('#cart-message').text(data.message).css('color', 'green');
-                          $('#cart-length').text(data.total_items);
-                      } else {
-                          $('#cart-message').text(data.message).css('color', 'red');
-                      }
-                  },
-                  error: function(xhr, errmsg, err) {
-                      console.log(xhr.status + ": " + xhr.responseText);
-                  }
-              });
-          });
-      });
+        function showAlert(type, message) {
+            var alertId = type === 'success' ? '#alert-success' : '#alert-error';
+            $(alertId).text(message).fadeIn();
+    
+            setTimeout(function() {
+                $(alertId).fadeOut();
+            }, 3000);
+        }
+    
+        $('#add-to-cart-form').submit(function(event) {
+            event.preventDefault();
+            var form = $(this);
+            var url = form.attr('action');
+    
+            $.ajax({
+                url: url,
+                method: 'POST',
+                data: form.serialize(),
+                beforeSend: function() {
+                    $('#cart-message').hide(); // Hide the old message
+                },
+                success: function(data) {
+                    if (data.success) {
+                        // Show success alert
+                        showAlert('success', data.message);
+                        // Update the cart length
+                        $('#cart-length').text(data.total_items);
+                    } else {
+                        // Show error alert
+                        showAlert('error', data.message);
+                    }
+                },
+                error: function(xhr, errmsg, err) {
+                    console.log(xhr.status + ": " + xhr.responseText);
+                    showAlert('error', 'An error occurred. Please try again.');
+                }
+            });
+        });
+    });
+    
   </script>
 
   </body>

@@ -48,6 +48,7 @@ class Product(models.Model):
     description = models.TextField(blank=True)
     status = models.IntegerField(choices=STATUS, default=0)
     
+    
     def __str__(self):
         return self.title
     
@@ -86,13 +87,14 @@ class Order(models.Model):
     
     
 class BillingAddress(models.Model):
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-    street_address = models.CharField(max_length=100)
+    full_name = models.CharField(max_length=200, null=True)
+    email = models.EmailField(max_length=200, null=True)
+    street_address = models.CharField(max_length=100, null=True)
     apartment_address = models.CharField(max_length=100, blank=True)
     zip = models.CharField(max_length=10)
 
     def __str__(self):
-        return f"Billing Address for {self.user.username}"
+        return f"Billing Address for {self.full_name}"
     
 
 class OrderProduct(models.Model):

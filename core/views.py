@@ -7,11 +7,16 @@ from django.views.generic import (ListView,
                                   TemplateView)
 from django.urls import reverse_lazy
 from .models import (ProductCategory,
-                     Product )
+                     Product,
+                     OrderProduct,
+                     Order,
+                     BillingAddress)
 from django.urls import reverse
 from django.contrib import messages
 from django.http import HttpResponse, JsonResponse
+from django.contrib.auth.decorators import login_required
 from django.template.loader import render_to_string, get_template
+from .forms import CheckoutForm
 from django.core.exceptions import ObjectDoesNotExist
 
 
@@ -180,4 +185,70 @@ def decrease_quantity(request, product_id):
             return JsonResponse({'success': False, 'message': f"{product.title} is not in your cart."})
     else:
         return JsonResponse({'success': False, 'message': "Invalid request method."})
+    
 
+@login_required
+def checkout_view(request):
+    if request.method == 'POST':
+        form = CheckoutForm(request.POST)
+        if form.is_valid():
+            # Extract billing address data from the form
+            billing_data = {
+                'full_name': form.cleaned_data.get('full_name'),
+                'email': form.cleaned_data.get('email'),
+                'street_address': form.cleaned_data.get('street_address'),
+                'apartment_address': form.cleaned_data.get('apartment_address'),
+                'zip': form.cleaned_data.get('zip'),
+            }
+            
+            # Save the billing address
+            billing_address = BillingAddress.objects.create(**billing_data)
+            
+            # Create order
+            order = Order.objects.create(
+                user=request.user,
+                billing_address=billing_address,
+            )
+
+            # Retrieve cart items
+            cart = request.session.get('cart', {})
+            for product_id, item in cart.items():
+                product = Product.objects.get(id=product_id)
+                quantity = item['quantity']
+                price = product.discount_price if product.discount_price else product.price
+                OrderProduct.objects.create(
+                    order=order,
+                    product=product,
+                    price=price,
+                    quantity=quantity
+                )
+
+            # Clear the cart after processing the order
+            request.session['cart'] = {}
+
+            # Redirect to payment gateway
+            return redirect('payment_url')
+    else:
+        form = CheckoutForm()
+
+    # Calculate total cost
+    total_cost = 0
+    cart = request.session.get('cart', {})
+    for product_id, item in cart.items():
+        try:
+            product = Product.objects.get(id=product_id)
+            quantity = item['quantity']
+            total_cost += (product.discount_price if product.discount_price else product.price) * quantity
+        except Product.DoesNotExist:
+            continue
+
+    context = {
+        'form': form,
+        'total_cost': total_cost,
+    }
+    return render(request, 'core/checkout.html', context)
+
+
+
+def payment_view(request):
+    return render(request, 'core/payment.html')
