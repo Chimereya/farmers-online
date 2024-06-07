@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Checkout and Payment</h2>
+    <form id="checkoutForm" method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <p>Total Cost: ${{ total_cost }}</p>
+        <button type="submit" class="btn btn-primary">Proceed to Payment</button>
+    </form>
+</div>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+<script>
+    document.getElementById('checkoutForm').addEventListener('submit', function(event) {
+        event.preventDefault();
+        payWithPaystack();
+    });
+    
+    function payWithPaystack() {
+        var handler = PaystackPop.setup({
+            key: 'pk_test_8b2291a3776d66234747b32979b7db16b5b78ac2', // Replace with your public key
+            email: document.querySelector('[name="email"]').value,
+            amount: {{ total_cost }} * 100, // the amount value is multiplied by 100 to convert to the lowest currency unit
+            currency: 'NGN', // Use GHS for Ghana Cedis or USD for US Dollars
+            metadata: {
+                custom_fields: [
+                    {
+                        display_name: "Order ID",
+                        variable_name: "order_id",
+                        value: '{{ order.id }}'
+                    }
+                ]
+            },
+            callback: function(response) {
+                //this happens after the payment is completed successfully
+                var reference = response.reference;
+                // Make an AJAX call to your server with the reference to verify the transaction
+                verifyTransaction(reference);
+            },
+            onClose: function() {
+                alert('Transaction was not completed, window closed.');
+            },
+        });
+    
+        handler.openIframe();
+    }
+    
+    function verifyTransaction(reference) {
+        $.ajax({
+            url: "{% url 'verify_transaction' %}", // Replace with your URL for transaction verification
+            method: 'POST',
+            data: {
+                'reference': reference,
+                'csrfmiddlewaretoken': '{{ csrf_token }}'
+            },
+            success: function(response) {
+                // Handle successful verification
+                alert(response.message);
+                window.location.href = "{% url 'dashboard' %}"; // Redirect to dashboard or any other page
+            },
+            error: function(xhr, errmsg, err) {
+                // Handle errors
+                console.log(xhr.status + ": " + xhr.responseText);
+            }
+        });
+    }
+    </script>
+    
+{% endblock %}
+
+
+

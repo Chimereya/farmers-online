@@ -79,9 +79,19 @@ class Order(models.Model):
     paid = models.BooleanField(default=False)
     is_ordered = models.BooleanField(default=False)
     billing_address = models.ForeignKey('BillingAddress', on_delete=models.SET_NULL, blank=True, null=True)
-    
+    total_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
     def __str__(self):
-        return f'Order {self.id}'
+        return f'Order for {self.billing_address.full_name}'
+
+    def calculate_total_cost(self):
+        total = sum(
+            item.quantity * (item.product.discount_price if item.product.discount_price else item.product.price)
+            for item in self.products.all()
+        )
+        self.total_cost = total
+        self.save()
+
 
 
     

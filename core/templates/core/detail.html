@@ -11,9 +11,9 @@
                 <span><del>${{ product.price }}</del></span>
                 {% endif %}
         <p>{{ product.description }}</p>
-        <form id="add-to-cart-form" action="{% url 'add_to_cart' product.id %}" method="post">
+        <form class="add-to-cart-form" action="{% url 'add_to_cart' product.id %}" method="post">
             {% csrf_token %}
-            <button type="submit" class="button primary round-full">Add to Cart</button>
+            <button type="submit" class="button primary sm " data-product-id="{{ product.id }}">Add to Cart</button>
         </form>
         <div id="cart-message"></div>
     </div>

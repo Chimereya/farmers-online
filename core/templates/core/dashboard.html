@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Orders Dashboard</h2>
+    <table class="table table-bordered">
+        <thead>
+            <tr>
+                <th>Order ID</th>
+                <th>Date Created</th>
+                <th>Email</th>
+                <th>Paid</th>
+                <th>Billing Address</th>
+                <th>Products Bought</th>
+                <th>Amount Paid</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for order in orders %}
+            <tr>
+                <td>{{ order.id }}</td>
+                <td>{{ order.created }}</td>
+                <td>{{ order.billing_address.email }}</td>
+                <td>{{ order.paid }}</td>
+                <td>
+                    {{ order.billing_address.full_name }}<br>
+                    {{ order.billing_address.street_address }}<br>
+                    {{ order.billing_address.apartment_address }}<br>
+                    {{ order.billing_address.zip }}
+                </td>
+                <td>
+                    {% for order_product in order.products.all %}
+                        {{ order_product.product.name }} (x{{ order_product.quantity }})<br>
+                    {% endfor %}
+                </td>
+                <td>
+                    ${{ order.get_total_cost }}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

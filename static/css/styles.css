@@ -489,6 +489,20 @@
     padding: 0 12px;
   }
 
+  .categories {
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px;
+  
+}
+
+.category-link {
+    display: inline-block;
+    margin-right: 10px;
+
+}
+
  
   .all-products{
     display:grid;

@@ -1,10 +1,7 @@
 from django.shortcuts import render, redirect, get_object_or_404
 from django.views.generic import (ListView,
                                   DetailView,
-                                  CreateView,
-                                  UpdateView,
-                                  DeleteView,
-                                  TemplateView)
+                                  )
 from django.urls import reverse_lazy
 from .models import (ProductCategory,
                      Product,
@@ -17,6 +14,9 @@ from django.http import HttpResponse, JsonResponse
 from django.contrib.auth.decorators import login_required
 from django.template.loader import render_to_string, get_template
 from .forms import CheckoutForm
+import requests
+from django.conf import settings
+from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
 
 
@@ -128,11 +128,18 @@ def remove_from_cart(request, product_id):
             del cart[str(product_id)]
             request.session['cart'] = cart
             total_items = sum(item['quantity'] for item in cart.values())
-            return JsonResponse({'success': True, 'message': f"{product.title} removed from your cart.", 'total_items': total_items})
+            messages.info(request, f"{product.title} removed from your cart.")
+            return redirect('cart')
+            # return JsonResponse({'success': True, 'message': f"{product.title} removed from your cart.", 'total_items': total_items})
         else:
-            return JsonResponse({'success': False, 'message': f"{product.title} is not in your cart."})
+            messages.error(request, f"{product.title} is not in your cart.")  
+            return redirect('cart')          
+            # return JsonResponse({'success': False, 'message': f"{product.title} is not in your cart."})
     else:
-        return JsonResponse({'success': False, 'message': "Invalid request method."})
+        messages.error(request, "Invalid request method")
+        return redirect('cart')
+        # return JsonResponse({'success': False, 'message': "Invalid request method."})
+    
     
 
 
@@ -187,8 +194,49 @@ def decrease_quantity(request, product_id):
         return JsonResponse({'success': False, 'message': "Invalid request method."})
     
 
+
+
+@csrf_exempt
+def verify_transaction(request):
+    if request.method == 'POST':
+        reference = request.POST.get('reference')
+        url = f'https://api.paystack.co/transaction/verify/{reference}'
+        headers = {
+            'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
+            'Content-Type': 'application/json',
+        }
+        response = requests.get(url, headers=headers)
+        response_data = response.json()
+
+        if response_data.get('status'):
+            status = response_data['data']['status']
+            if status == 'success':
+                # Update order status
+                try:
+                    order_id = response_data['data']['metadata']['order_id']
+                    order = Order.objects.get(id=order_id)
+                    order.paid = True
+                    order.save()
+
+                    # Clear the cart
+                    request.session['cart'] = {}
+
+                    return JsonResponse({'message': 'Payment verified successfully.', 'redirect_url': reverse('dashboard')})
+                except KeyError:
+                    return JsonResponse({'message': 'Order ID not found in metadata.'}, status=400)
+                except Order.DoesNotExist:
+                    return JsonResponse({'message': 'Order not found.'}, status=400)
+            else:
+                return JsonResponse({'message': 'Payment verification failed.'}, status=400)
+        else:
+            return JsonResponse({'message': 'Transaction verification failed.'}, status=400)
+
+    return JsonResponse({'message': 'Invalid request method.'}, status=400)
+
+
+
 @login_required
-def checkout_view(request):
+def checkout_and_payment_view(request):
     if request.method == 'POST':
         form = CheckoutForm(request.POST)
         if form.is_valid():
@@ -223,11 +271,32 @@ def checkout_view(request):
                     quantity=quantity
                 )
 
-            # Clear the cart after processing the order
-            request.session['cart'] = {}
+            # Proceed to payment
+            total_cost = sum(
+                item.quantity * (item.product.discount_price if item.product.discount_price else item.product.price)
+                for item in order.products.all()
+            )
 
-            # Redirect to payment gateway
-            return redirect('payment_url')
+            email = billing_data['email']
+            headers = {
+                'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
+                'Content-Type': 'application/json',
+            }
+            data = {
+                "email": email,
+                "amount": int(total_cost * 100),  # Paystack expects amount in kobo
+                "metadata": {
+                    "order_id": order.id  # Include order ID in metadata
+                }
+            }
+            response = requests.post('https://api.paystack.co/transaction/initialize', headers=headers, json=data)
+            response_data = response.json()
+
+            if response_data.get('status'):
+                authorization_url = response_data['data']['authorization_url']
+                return redirect(authorization_url)
+            else:
+                return render(request, 'core/payment_failed.html', {'message': response_data.get('message')})
     else:
         form = CheckoutForm()
 
@@ -245,10 +314,21 @@ def checkout_view(request):
     context = {
         'form': form,
         'total_cost': total_cost,
+        'paystack_public_key': settings.PAYSTACK_PUBLIC_KEY,
     }
-    return render(request, 'core/checkout.html', context)
+    return render(request, 'core/checkout_and_payment.html', context)
 
 
 
-def payment_view(request):
-    return render(request, 'core/payment.html')
+
+@login_required
+def dashboard_view(request):
+    orders = Order.objects.select_related('billing_address').prefetch_related('products').all()
+    context = {
+        'orders': orders
+    }
+    return render(request, 'core/dashboard.html', context)
+
+def payment_success(request):
+    return render(request, 'core/payment_success.html')
+
