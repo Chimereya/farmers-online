@@ -74,7 +74,7 @@ class Cart(models.Model):
 class Order(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     products = models.ManyToManyField('OrderProduct', related_name='orders')
-    created = models.DateTimeField(auto_now_add=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated = models.DateTimeField(auto_now=True, null=True)
     paid = models.BooleanField(default=False)
     is_ordered = models.BooleanField(default=False)
@@ -82,7 +82,9 @@ class Order(models.Model):
     total_cost = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
 
     def __str__(self):
-        return f'Order for {self.billing_address.full_name}'
+        if self.billing_address:
+            return f'Order for {self.billing_address.full_name}'
+        return f'Order #{self.id}'
 
     def calculate_total_cost(self):
         total = sum(
@@ -91,18 +93,22 @@ class Order(models.Model):
         )
         self.total_cost = total
         self.save()
+        
+        
 
 
 
     
     
 class BillingAddress(models.Model):
-    full_name = models.CharField(max_length=200, null=True)
-    email = models.EmailField(max_length=200, null=True)
-    street_address = models.CharField(max_length=100, null=True)
-    apartment_address = models.CharField(max_length=100, blank=True)
-    zip = models.CharField(max_length=10)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, null=True)
+    full_name = models.CharField(max_length=100, null=True)
+    email = models.EmailField(null=True)
+    street_address = models.CharField(max_length=255, null=True)
+    apartment_address = models.CharField(max_length=255, blank=True, null=True)
+    zip = models.CharField(max_length=20, null=True)
 
+   
     def __str__(self):
         return f"Billing Address for {self.full_name}"
     
@@ -117,6 +123,9 @@ class OrderProduct(models.Model):
 
     def __str__(self):
         return f"{self.quantity} of {self.product.title}"
+    
+    
+    
 
     
   

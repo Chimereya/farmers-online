@@ -1,7 +1,8 @@
 {% extends "base.html" %}
+{% load custom_tags %}
 
 {% block content %}
-<div class="container mt-4">
+<main class="container">
     <h2>Orders Dashboard</h2>
     <table class="table table-bordered">
         <thead>
@@ -19,7 +20,7 @@
             {% for order in orders %}
             <tr>
                 <td>{{ order.id }}</td>
-                <td>{{ order.created }}</td>
+                <td>{{ order.created_at }}</td>
                 <td>{{ order.billing_address.email }}</td>
                 <td>{{ order.paid }}</td>
                 <td>
@@ -29,16 +30,17 @@
                     {{ order.billing_address.zip }}
                 </td>
                 <td>
-                    {% for order_product in order.products.all %}
-                        {{ order_product.product.name }} (x{{ order_product.quantity }})<br>
+                    {% for order_product in order_products %}
+                        {{ order_product.product.title }} - {{ order_product.quantity }} x ₦{{ order_product.price }}<br>
                     {% endfor %}
                 </td>
                 <td>
-                    ${{ order.get_total_cost }}
+                    <p>Total Amount: ₦{{ order_products|sum_prices }}</p>
                 </td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-</div>
+</main>
+
 {% endblock %}

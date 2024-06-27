@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Checkout and Payment</h2>
+    <form id="checkoutForm" method="post" action="{% if not order %}{% url 'checkout_view' %}{% endif %}">
+        {% csrf_token %}
+        {% if not order %}
+            {{ form.as_p }}
+        {% endif %}
+        <p>Total Cost: ${{ total_cost }}</p>
+        {% if not order %}
+            <button type="submit" class="btn btn-primary">Proceed to Payment</button>
+        {% else %}
+            <button type="button" class="btn btn-primary" id="payButton">Pay Now</button>
+        {% endif %}
+    </form>
+</div>
+
+<script src="https://js.paystack.co/v1/inline.js"></script>
+{% if order %}
+<script>
+document.getElementById('payButton').addEventListener('click', function(event) {
+    payWithPaystack();
+});
+
+function payWithPaystack() {
+    var handler = PaystackPop.setup({
+        key: '', // Replace with your public key
+        email: '{{ order.billing_address.email }}',
+        amount: {{ total_cost }} * 100, // Ensure the amount is properly formatted and multiplied by 100
+        currency: 'NGN', // Use GHS for Ghana Cedis or USD for US Dollars
+        ref: 'YOUR_REFERENCE_' + Math.floor((Math.random() * 1000000000) + 1), // Replace with a reference you generated
+        metadata: {
+            order_id: '{{ order.id }}'
+        },
+        callback: function(response) {
+            // This happens after the payment is completed successfully
+            var reference = response.reference;
+            alert('Payment complete! Reference: ' + reference);
+            // Make an AJAX call to your server with the reference to verify the transaction
+            verifyTransaction(reference);
+        },
+        onClose: function() {
+            alert('Transaction was not completed, window closed.');
+        },
+    });
+
+    handler.openIframe();
+}
+
+function verifyTransaction(reference) {
+    $.ajax({
+        url: "{% url 'verify_transaction' %}", // Replace with your URL for transaction verification
+        method: 'POST',
+        data: {
+            'reference': reference,
+            'csrfmiddlewaretoken': '{{ csrf_token }}'
+        },
+        success: function(response) {
+            // Handle successful verification
+            alert(response.message);
+            window.location.href = "{% url 'dashboard' %}"; // Redirect to order summary or any other page
+        },
+        error: function(xhr, errmsg, err) {
+            // Handle errors
+            console.log(xhr.status + ": " + xhr.responseText);
+        }
+    });
+}
+</script>
+{% endif %}
+{% endblock %}

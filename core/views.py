@@ -15,6 +15,9 @@ from django.contrib.auth.decorators import login_required
 from django.template.loader import render_to_string, get_template
 from .forms import CheckoutForm
 import requests
+import json
+from decimal import Decimal
+from django.db.models import Sum
 from django.conf import settings
 from django.views.decorators.csrf import csrf_exempt
 from django.core.exceptions import ObjectDoesNotExist
@@ -195,48 +198,8 @@ def decrease_quantity(request, product_id):
     
 
 
-
-@csrf_exempt
-def verify_transaction(request):
-    if request.method == 'POST':
-        reference = request.POST.get('reference')
-        url = f'https://api.paystack.co/transaction/verify/{reference}'
-        headers = {
-            'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
-            'Content-Type': 'application/json',
-        }
-        response = requests.get(url, headers=headers)
-        response_data = response.json()
-
-        if response_data.get('status'):
-            status = response_data['data']['status']
-            if status == 'success':
-                # Update order status
-                try:
-                    order_id = response_data['data']['metadata']['order_id']
-                    order = Order.objects.get(id=order_id)
-                    order.paid = True
-                    order.save()
-
-                    # Clear the cart
-                    request.session['cart'] = {}
-
-                    return JsonResponse({'message': 'Payment verified successfully.', 'redirect_url': reverse('dashboard')})
-                except KeyError:
-                    return JsonResponse({'message': 'Order ID not found in metadata.'}, status=400)
-                except Order.DoesNotExist:
-                    return JsonResponse({'message': 'Order not found.'}, status=400)
-            else:
-                return JsonResponse({'message': 'Payment verification failed.'}, status=400)
-        else:
-            return JsonResponse({'message': 'Transaction verification failed.'}, status=400)
-
-    return JsonResponse({'message': 'Invalid request method.'}, status=400)
-
-
-
 @login_required
-def checkout_and_payment_view(request):
+def checkout_view(request):
     if request.method == 'POST':
         form = CheckoutForm(request.POST)
         if form.is_valid():
@@ -248,10 +211,10 @@ def checkout_and_payment_view(request):
                 'apartment_address': form.cleaned_data.get('apartment_address'),
                 'zip': form.cleaned_data.get('zip'),
             }
-            
+
             # Save the billing address
             billing_address = BillingAddress.objects.create(**billing_data)
-            
+
             # Create order
             order = Order.objects.create(
                 user=request.user,
@@ -260,6 +223,7 @@ def checkout_and_payment_view(request):
 
             # Retrieve cart items
             cart = request.session.get('cart', {})
+            total_cost = Decimal('0.00')
             for product_id, item in cart.items():
                 product = Product.objects.get(id=product_id)
                 quantity = item['quantity']
@@ -270,38 +234,21 @@ def checkout_and_payment_view(request):
                     price=price,
                     quantity=quantity
                 )
+                total_cost += price * quantity
 
-            # Proceed to payment
-            total_cost = sum(
-                item.quantity * (item.product.discount_price if item.product.discount_price else item.product.price)
-                for item in order.products.all()
-            )
+            # Save order ID and total cost in session
+            request.session['order_id'] = order.id
+            request.session['total_cost'] = float(total_cost)
+            
+            
 
-            email = billing_data['email']
-            headers = {
-                'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
-                'Content-Type': 'application/json',
-            }
-            data = {
-                "email": email,
-                "amount": int(total_cost * 100),  # Paystack expects amount in kobo
-                "metadata": {
-                    "order_id": order.id  # Include order ID in metadata
-                }
-            }
-            response = requests.post('https://api.paystack.co/transaction/initialize', headers=headers, json=data)
-            response_data = response.json()
-
-            if response_data.get('status'):
-                authorization_url = response_data['data']['authorization_url']
-                return redirect(authorization_url)
-            else:
-                return render(request, 'core/payment_failed.html', {'message': response_data.get('message')})
+            # Redirect to payment view
+            return redirect('payment_view', order_id=order.id)
     else:
         form = CheckoutForm()
 
     # Calculate total cost
-    total_cost = 0
+    total_cost = Decimal('0.00')
     cart = request.session.get('cart', {})
     for product_id, item in cart.items():
         try:
@@ -313,19 +260,70 @@ def checkout_and_payment_view(request):
 
     context = {
         'form': form,
-        'total_cost': total_cost,
-        'paystack_public_key': settings.PAYSTACK_PUBLIC_KEY,
+        'total_cost': float(total_cost),
     }
-    return render(request, 'core/checkout_and_payment.html', context)
-
+    return render(request, 'core/payment.html', context)
 
 
 
 @login_required
-def dashboard_view(request):
-    orders = Order.objects.select_related('billing_address').prefetch_related('products').all()
+def payment_view(request, order_id):
+    order = get_object_or_404(Order, id=order_id)
+    total_cost = request.session.get('total_cost', 0)
+
     context = {
-        'orders': orders
+        'order': order,
+        'total_cost': total_cost,
+        'paystack_public_key': settings.PAYSTACK_PUBLIC_KEY,
+    }
+    return render(request, 'core/payment.html', context)
+
+
+
+@csrf_exempt
+def verify_transaction(request):
+    if request.method == 'POST':
+        reference = request.POST.get('reference')
+        if not reference:
+            return JsonResponse({'status': False, 'message': 'No reference provided'}, status=400)
+
+        headers = {
+            'Authorization': f'Bearer {settings.PAYSTACK_SECRET_KEY}',
+            'Content-Type': 'application/json',
+        }
+        url = f'https://api.paystack.co/transaction/verify/{reference}'
+        response = requests.get(url, headers=headers)
+        response_data = response.json()
+
+        if response_data.get('status'):
+            try:
+                order_id = response_data['data']['metadata']['order_id']
+                order = get_object_or_404(Order, id=order_id)
+                order.paid = True
+
+                order.save()
+
+                # Clear the cart
+                request.session['cart'] = {}
+
+                return JsonResponse({'status': True, 'message': 'Transaction verified successfully'})
+            except KeyError:
+                return JsonResponse({'status': False, 'message': 'Order ID not found in response'}, status=400)
+            except Order.DoesNotExist:
+                return JsonResponse({'status': False, 'message': 'Order not found'}, status=404)
+        else:
+            return JsonResponse({'status': False, 'message': 'Transaction verification failed'}, status=400)
+
+    return JsonResponse({'status': False, 'message': 'Invalid request method'}, status=405)
+
+@login_required
+def dashboard_view(request):
+    orders = Order.objects.all().select_related('billing_address').prefetch_related('products__product')
+    order_products = OrderProduct.objects.all()
+
+    context = {
+        'orders': orders,
+        'order_products': order_products,
     }
     return render(request, 'core/dashboard.html', context)
 
