@@ -1,2 +1,2 @@
 # farmers online 
-a mini e-commerce website for farmers build with django, integrating paystack payment.
+a mini e-commerce website for farmers built with django, integrating paystack payment.
